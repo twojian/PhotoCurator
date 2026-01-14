@@ -25,3 +25,4 @@ class StatusPanel(QWidget):
         self.pending_label.setText(f"Pending: {pending}")
         self.running_label.setText(f"Running: {running}")
         self.done_label.setText(f"Done: {done}")
+        self.update()  # 强制刷新

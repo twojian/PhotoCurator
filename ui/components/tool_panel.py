@@ -1,7 +1,10 @@
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QSlider
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 
 class ToolPanel(QWidget):
+    # ✅ V1.2：新增信号
+    viewportBoostChanged = pyqtSignal(int)
+    intentBoostChanged = pyqtSignal(int)
     def __init__(self):
         super().__init__()
         layout = QVBoxLayout(self)
@@ -25,7 +28,8 @@ class ToolPanel(QWidget):
         layout.addWidget(self.intent_label)
         layout.addWidget(self.intent_slider)
         layout.addStretch()
-
+        # ---------- 信号绑定 ----------
+        # 保留 label 自动更新
         # UI 内部自更新文本
         self.viewport_slider.valueChanged.connect(
             lambda v: self.viewport_label.setText(f"Viewport Boost: {v}")
@@ -33,3 +37,6 @@ class ToolPanel(QWidget):
         self.intent_slider.valueChanged.connect(
             lambda v: self.intent_label.setText(f"Intent Boost: {v}")
         )
+        # ✅ V1.2：发射 Controller 需要的信号
+        self.viewport_slider.valueChanged.connect(self.viewportBoostChanged)
+        self.intent_slider.valueChanged.connect(self.intentBoostChanged)

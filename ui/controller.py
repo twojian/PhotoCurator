@@ -1,5 +1,5 @@
 from PyQt6.QtCore import QThread, pyqtSignal
-import time
+from core.engine import load_and_vectorize
 
 class InferenceWorker(QThread):
     task_started = pyqtSignal(str)
@@ -17,7 +17,13 @@ class InferenceWorker(QThread):
                 continue
 
             self.task_started.emit(task.image_id)
-            embedding = self.scheduler.engine.infer(task.image_id)
+            embedding = None
+            try:
+                x = load_and_vectorize(task.image_id)
+                embedding = self.scheduler.engine.infer(x)
+            except Exception as e:
+                print(f"[ERROR] 推理失败 {task.image_id}: {e}")
+
             self.result_ready.emit(task.image_id, embedding)
 
 class UIController:
@@ -27,6 +33,17 @@ class UIController:
         self.gallery = gallery
         self.status_panel = status_panel
         self.tool_panel = tool_panel
+
+        # ---------- V1.2：绑定 ToolPanel 信号 ----------
+        self.tool_panel.viewportBoostChanged.connect(self._on_viewport_changed)
+        self.tool_panel.intentBoostChanged.connect(self._on_intent_changed)
+
+    # ---------- 信号处理函数 ----------
+    def _on_viewport_changed(self, value: int):
+        self.scheduler.set_viewport_boost(value)
+
+    def _on_intent_changed(self, value: int):
+        self.scheduler.set_intent_boost(value)
 
     def submit_image(self, image_id):
         self.db.add(image_id)
@@ -47,9 +64,12 @@ class UIController:
 
     def _update_status_panel(self):
         total = len(self.db.images)
-        pending = sum(1 for v in self.db.states.values() if v == "PENDING")
-        running = sum(1 for v in self.db.states.values() if v == "RUNNING")
-        done = sum(1 for v in self.db.states.values() if v == "DONE")
+        pending = sum(1 for r in self.db.images.values() if r.state == "PENDING")
+        running = sum(1 for r in self.db.images.values() if r.state == "RUNNING")
+        done = sum(1 for r in self.db.images.values() if r.state == "DONE")
+
+        # debug log
+        print(f"[DEBUG] Status: total={total}, pending={pending}, running={running}, done={done}")
 
         self.status_panel.update_counts(
             total, pending, running, done

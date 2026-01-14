@@ -1,8 +1,4 @@
-from PyQt6.QtWidgets import (
-    QMainWindow,
-    QWidget,
-    QHBoxLayout
-)
+from PyQt6.QtWidgets import QMainWindow, QWidget, QHBoxLayout
 from ui.components.gallery import Gallery
 from ui.components.status_panel import StatusPanel
 from ui.components.tool_panel import ToolPanel
@@ -10,7 +6,7 @@ from ui.components.tool_panel import ToolPanel
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("PhotoCurator V1.1")
+        self.setWindowTitle("PhotoCurator V1.2")
 
         central = QWidget()
         self.setCentralWidget(central)
@@ -28,6 +24,6 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.gallery, stretch=1)
         layout.addWidget(self.tool_panel)
 
-        # V1.1：假图片路径
+        # V1.1：假图片路径占位
         fake_images = [f"image_{i}.jpg" for i in range(30)]
         self.gallery.set_images(fake_images)
