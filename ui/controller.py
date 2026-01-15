@@ -1,5 +1,8 @@
 from PyQt6.QtCore import QThread, pyqtSignal
 from core.engine import load_and_vectorize
+import logging
+
+logger = logging.getLogger(__name__)
 
 class InferenceWorker(QThread):
     task_started = pyqtSignal(str)
@@ -10,21 +13,30 @@ class InferenceWorker(QThread):
         self.scheduler = scheduler
 
     def run(self):
+        # V1.3 批量拉取任务，减少频繁锁竞争与高并发 IO 峰值
         while not self.isInterruptionRequested():
-            task = self.scheduler.get_next_task()
-            if task is None:
+            batch = []
+            try:
+                batch = self.scheduler.get_next_batch(8)
+            except Exception as e:
+                logger.warning(f"Failed to get batch from scheduler: {e}")
+
+            if not batch:
                 self.msleep(50)
                 continue
 
-            self.task_started.emit(task.image_id)
-            embedding = None
-            try:
-                x = load_and_vectorize(task.image_id)
-                embedding = self.scheduler.engine.infer(x)
-            except Exception as e:
-                print(f"[ERROR] 推理失败 {task.image_id}: {e}")
+            for task in batch:
+                try:
+                    self.task_started.emit(task.image_id)
+                    embedding = None
+                    x = load_and_vectorize(task.image_id)
+                    embedding = self.scheduler.engine.infer(x)
+                    self.result_ready.emit(task.image_id, embedding)
+                except Exception as e:
+                    logger.error(f"推理失败 {task.image_id}: {e}")
 
-            self.result_ready.emit(task.image_id, embedding)
+            # V1.3 在处理完一批后短暂休眠，缓解 CPU/IO 峰值
+            self.msleep(30)
 
 class UIController:
     def __init__(self, scheduler, db, gallery, status_panel, tool_panel):
@@ -34,9 +46,19 @@ class UIController:
         self.status_panel = status_panel
         self.tool_panel = tool_panel
 
-        # ---------- V1.2：绑定 ToolPanel 信号 ----------
-        self.tool_panel.viewportBoostChanged.connect(self._on_viewport_changed)
-        self.tool_panel.intentBoostChanged.connect(self._on_intent_changed)
+        # ---------- V1.2：绑定 ToolPanel 信号（防御性绑定，避免 NoneType/AttributeError） ----------
+        if self.tool_panel is not None:
+            # 信号可能在不同 Qt 版本或 Mock 环境中不可用，故做保护性检测
+            if hasattr(self.tool_panel, 'viewportBoostChanged') and hasattr(self.tool_panel, 'intentBoostChanged'):
+                try:
+                    self.tool_panel.viewportBoostChanged.connect(self._on_viewport_changed)
+                    self.tool_panel.intentBoostChanged.connect(self._on_intent_changed)
+                except Exception as e:
+                    logger.warning(f"Failed to bind tool_panel signals: {e}")
+            else:
+                logger.warning("tool_panel missing expected signals; scheduler boosts unavailable")
+        else:
+            logger.warning("tool_panel is None; scheduler boosts unavailable")
 
     # ---------- 信号处理函数 ----------
     def _on_viewport_changed(self, value: int):
@@ -51,13 +73,30 @@ class UIController:
 
     def on_task_started(self, image_id):
         self.db.set_state(image_id, "RUNNING")
-        self.gallery.set_state(image_id, "RUNNING")
-        self._update_status_panel()
+        # 防御性调用 UI 组件方法
+        try:
+            if self.gallery is not None:
+                self.gallery.set_state(image_id, "RUNNING")
+        except Exception:
+            logger.warning(f"gallery.set_state failed for {image_id}")
+
+        try:
+            self._update_status_panel()
+        except Exception:
+            logger.warning("status panel update failed on task start")
 
     def on_task_finished(self, image_id, embedding):
         self.db.set_embedding(image_id, embedding)
-        self.gallery.set_state(image_id, "DONE")
-        self._update_status_panel()
+        try:
+            if self.gallery is not None:
+                self.gallery.set_state(image_id, "DONE")
+        except Exception:
+            logger.warning(f"gallery.set_state failed for {image_id} on finish")
+
+        try:
+            self._update_status_panel()
+        except Exception:
+            logger.warning("status panel update failed on task finish")
 
     def on_scroll_stopped(self, visible_ids):
         self.scheduler.bump_to_front_batch(visible_ids)

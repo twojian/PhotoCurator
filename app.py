@@ -1,5 +1,6 @@
 import sys
 import os
+import logging
 from PyQt6.QtWidgets import QApplication
 from core.engine import InferenceEngine
 from core.scheduler import PriorityScheduler
@@ -7,6 +8,14 @@ from data.database import ImageDatabase
 from data.weight_loader import load_weights
 from ui.controller import InferenceWorker, UIController
 from ui.main_window import MainWindow
+
+
+# V1.3 全局日志配置：输出到控制台，等级可通过环境变量或后续扩展调整
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(levelname)s] %(asctime)s %(name)s: %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 def main():
     app = QApplication(sys.argv)
@@ -17,7 +26,7 @@ def main():
     # -------------------- 获取真实图片路径 --------------------
     test_photo_dir = os.path.join("data", "test_photo")
     if not os.path.exists(test_photo_dir):
-        print(f"[WARN] 测试图片文件夹不存在: {test_photo_dir}")
+        logger.warning(f"测试图片文件夹不存在: {test_photo_dir}")
         image_paths = []
     else:
         image_paths = [
@@ -25,7 +34,7 @@ def main():
             for f in os.listdir(test_photo_dir)
             if f.lower().endswith((".jpg", ".jpeg", ".png"))
         ]
-    print(f"[INFO] 找到 {len(image_paths)} 张测试图片")
+    logger.info(f"找到 {len(image_paths)} 张测试图片")
 
     # 如果有真实图片，覆盖 fake images
     if image_paths:

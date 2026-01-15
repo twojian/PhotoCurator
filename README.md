@@ -94,25 +94,29 @@ AI Analysis Worker（异步）
   ├─ 相似度计算
   └─ 聚类结果生成
 ```
-
 ```markdown
 PhotoCurator/
-├── ui/
-│   ├── main_window.py     # 主界面：网格布局、图片展示
-│   ├── components/
-│   │   ├── gallery.py     # 图片流组件（需实现懒加载）
-│   │   └── sidebar.py     # 相似度调节与 EXIF 信息栏
-│   └── controller.py      # UI 与 Core 的粘合层（信号转发）
-├── core/
-│   ├── scheduler.py       # V1.1 优先级调度器
-│   ├── engine.py          # 手写推理引擎
-│   └── operators.py       # 手写算子库
-├── data/
-│   ├── database.py        # 存储图片路径、状态、Embedding
-│   └── weight_loader.py   # 解析 .bin 权重文件
-├── app.py                 # 程序入口（初始化 UI 和 后台线程）
-└── export_weights.py      # 工具：将 PyTorch 权重导出为二进制
-└── requirements.txt
+│
+├─ app.py                 # 程序入口，初始化 UI / Core / Database / Worker
+├─ export_weights.py      # PyTorch 模型权重导出为二进制
+│
+├─ core/                  # 核心推理与调度逻辑
+│   ├─ engine.py          # 推理引擎（InferenceEngine）
+│   ├─ operators.py       # 基础算子（linear, relu, l2_normalize）
+│   └─ scheduler.py       # 优先级调度器（PriorityScheduler）
+├─ data/                  # 数据管理
+│   ├─ database.py        # 图片记录与状态管理（ImageDatabase）
+│   └─ weight_loader.py   # 权重加载（load_weights）
+│   └── test_photo/        # 测试图片
+├── requirements.txt
+└─ ui/                    # 界面相关
+    ├─ main_window.py     # 主窗口 MainWindow
+    ├─ controller.py      # UIController + InferenceWorker
+    └─ components/        # UI 组件
+        ├─ gallery.py     # 瀑布流/网格图片展示
+        ├─ image_item.py  # 单个图片项绘制
+        ├─ status_panel.py# 系统状态面板（总数/Pending/Running/Done）
+        └─ tool_panel.py  # 调度器参数控制面板（viewport / intent）
 ```
 
 ---

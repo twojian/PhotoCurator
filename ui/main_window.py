@@ -23,7 +23,3 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.status_panel)
         layout.addWidget(self.gallery, stretch=1)
         layout.addWidget(self.tool_panel)
-
-        # V1.1：假图片路径占位
-        fake_images = [f"image_{i}.jpg" for i in range(30)]
-        self.gallery.set_images(fake_images)

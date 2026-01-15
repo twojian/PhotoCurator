@@ -89,6 +89,18 @@ class PriorityScheduler:
                 return task
             return None
 
+    def get_next_batch(self, max_items: int = 8):
+        """ V1.3 一次性出队多个任务，减少调度器锁竞争与 Worker 的频繁唤醒。"""
+        out = []
+        with self.lock:
+            while self.heap and len(out) < max_items:
+                _, _, task = heapq.heappop(self.heap)
+                if task.image_id not in self.task_map:
+                    continue
+                self.task_map.pop(task.image_id)
+                out.append(task)
+        return out
+
     def decay(self):
         with self.lock:
             for task in self.task_map.values():

@@ -1,4 +1,5 @@
 numpy
 PyQt6
 pillow
+pillow-heif
 torch
