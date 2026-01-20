@@ -1,6 +1,6 @@
-from PyQt6.QtWidgets import QWidget
-from PyQt6.QtGui import QPainter, QColor, QPixmap
-from PyQt6.QtCore import Qt, QRect
+from PyQt6.QtWidgets import QWidget, QMenu
+from PyQt6.QtGui import QPainter, QColor, QPixmap, QFont
+from PyQt6.QtCore import Qt, QRect, pyqtSignal
 import os
 import hashlib
 from PIL import Image
@@ -10,24 +10,75 @@ logger = logging.getLogger(__name__)
 
 
 class ImageItem(QWidget):
+    """
+    推理状态节点（Inference State Node）
+    
+    每张图片代表一个状态机：
+    - INDEXED：已索引（文件可访问）
+    - PENDING：待推理（在队列中）
+    - RUNNING：正在推理
+    - DONE：推理完成
+    - MARKED：用户标记为重要
+    """
+    
     THUMB_SIZE = (150, 150)
     TEXT_HEIGHT = 24
     PADDING = 6
+    
+    # 信号：右键点击事件，用于"为什么是它"功能
+    rightClicked = pyqtSignal(str)  # image_id
 
     def __init__(self, image_id: str):
         super().__init__()
         self.image_id = image_id
         self.state = "PENDING"  # PENDING / RUNNING / DONE
+        self.is_marked = False  # 用户标记状态
         self.setMinimumSize(150, 150)
         self.setMaximumWidth(180)
         self.pixmap = None
 
         # 延迟加载：不在构造器中读取图片，避免大量同步 IO
         self._loaded = False
+        
+        # 启用右键菜单
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.customContextMenuRequested.connect(self._show_context_menu)
 
     def set_state(self, state: str):
+        """更新推理状态。"""
         self.state = state
         self.update()  # 触发重绘
+
+    def mark_as_important(self):
+        """标记此图片为用户关注对象（Selection as Commitment）。"""
+        self.is_marked = True
+        self.update()
+        logger.info(f"Marked {os.path.basename(self.image_id)} as important")
+
+    def unmark(self):
+        """取消标记。"""
+        self.is_marked = False
+        self.update()
+
+    def _show_context_menu(self, pos):
+        """显示右键菜单，预留'为什么是它'功能接口。"""
+        menu = QMenu(self)
+        
+        # 标记/取消标记
+        if self.is_marked:
+            menu.addAction("Unmark as important", self.unmark)
+        else:
+            menu.addAction("Mark as important", self.mark_as_important)
+        
+        menu.addSeparator()
+        
+        # 未来功能：为什么是它（Why is it?）
+        why_action = menu.addAction("💭 Why is it? (debug)")
+        why_action.triggered.connect(lambda: self.rightClicked.emit(self.image_id))
+        why_action.setEnabled(False)  # 暂未启用，但预留接口
+        
+        # 显示菜单
+        menu.exec(self.mapToGlobal(pos))
 
     def ensure_loaded(self):
         """确保缩略图已载入；有缓存则直接读取，否则从源文件生成并缓存。"""
@@ -162,6 +213,17 @@ class ImageItem(QWidget):
         painter.setBrush(self._state_color())
         painter.setPen(Qt.PenStyle.NoPen)
         painter.drawEllipse(circle_rect)
+
+        # 右上角：用户标记指示器（Selection as Commitment）
+        if self.is_marked:
+            mark_text = "📌"  # 标记符号
+            painter.setFont(QFont("Arial", 10))
+            painter.setPen(QColor(255, 140, 0))  # 橙色
+            painter.drawText(
+                QRect(img_area.right() - 20, img_area.top() + 6, 20, 20),
+                Qt.AlignmentFlag.AlignCenter,
+                mark_text
+            )
 
         # 文件名文本
         painter.setPen(QColor(60, 60, 60))

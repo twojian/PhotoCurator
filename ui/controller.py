@@ -59,6 +59,12 @@ class UIController:
                 logger.warning("tool_panel missing expected signals; scheduler boosts unavailable")
         else:
             logger.warning("tool_panel is None; scheduler boosts unavailable")
+        
+        # 图片标记事件：当用户右键点击图片时
+        if hasattr(self.gallery, 'items'):
+            for item in self.gallery.items.values():
+                if hasattr(item, 'rightClicked'):
+                    item.rightClicked.connect(self._on_image_right_clicked)
 
     # ---------- 信号处理函数 ----------
     def _on_viewport_changed(self, value: int):
@@ -110,6 +116,35 @@ class UIController:
         # debug log
         print(f"[DEBUG] Status: total={total}, pending={pending}, running={running}, done={done}")
 
-        self.status_panel.update_counts(
-            total, pending, running, done
-        )
+        self.status_panel.update_counts(total, pending, running, done)
+        
+        # 根据 Intent Boost 更新调度策略描述
+        if self.tool_panel and hasattr(self.tool_panel, 'intent_slider'):
+            intent_boost = self.tool_panel.intent_slider.value()
+            viewport_boost = self.tool_panel.viewport_slider.value()
+            
+            # 简单的策略推断
+            if viewport_boost > 30:
+                strategy = "aggressive"
+            elif viewport_boost < 10:
+                strategy = "passive"
+            else:
+                strategy = "passive"  # 默认保守
+            
+            try:
+                self.status_panel.update_strategy(strategy)
+            except Exception as e:
+                logger.debug(f"Failed to update strategy: {e}")
+        
+        # 更新用户标记计数
+        if self.gallery and hasattr(self.gallery, 'get_marked_images'):
+            try:
+                marked_count = len(self.gallery.get_marked_images())
+                if self.tool_panel and hasattr(self.tool_panel, 'update_marked_count'):
+                    self.tool_panel.update_marked_count(marked_count)
+            except Exception as e:
+                logger.debug(f"Failed to update marked count: {e}")
+
+    def _on_image_right_clicked(self, image_id: str):
+        """处理图片右键点击事件，为'为什么是它'功能预留接口。"""
+        logger.info(f"Right-clicked on {image_id} - 'Why is it?' feature reserved for future")

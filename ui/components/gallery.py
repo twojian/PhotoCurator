@@ -1,14 +1,35 @@
 import os
 from PyQt6.QtWidgets import (
-    QWidget, QScrollArea, QGridLayout
+    QWidget, QScrollArea, QGridLayout, QVBoxLayout, QLabel
 )
+from PyQt6.QtCore import Qt
 from ui.components.image_item import ImageItem
 from concurrent.futures import ThreadPoolExecutor
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Gallery(QScrollArea):
+    """
+    世界投影层（World Projection）
+    
+    图片不只是图片，而是推理状态节点。
+    可视范围 = 系统的认知焦点（Attention Window）。
+    """
+    
     def __init__(self):
         super().__init__()
+        main_widget = QWidget()
+        main_layout = QVBoxLayout(main_widget)
+        main_layout.setSpacing(0)
+
+        # 顶部：注意力计数
+        self.attention_label = QLabel("Attention window: 0 images in focus")
+        self.attention_label.setStyleSheet("font-size: 10pt; color: #666; padding: 8px 4px;")
+        main_layout.addWidget(self.attention_label)
+
+        # 网格容器
         self.container = QWidget()
         self.grid = QGridLayout(self.container)
         self.grid.setSpacing(12)
@@ -16,7 +37,10 @@ class Gallery(QScrollArea):
         self.items = {}  # image_id -> ImageItem
         self.items_order = []
 
-        self.setWidget(self.container)
+        main_layout.addWidget(self.container)
+        main_layout.addStretch()
+        
+        self.setWidget(main_widget)
         self.setWidgetResizable(True)
 
     def set_images(self, image_ids):
@@ -102,4 +126,15 @@ class Gallery(QScrollArea):
             if item:
                 item.ensure_loaded()
 
+        # 更新注意力计数
+        self.attention_label.setText(f"Attention window: {len(visible)} images in focus")
         return visible
+
+    def mark_image(self, image_id: str):
+        """标记一张图片为用户关注对象。"""
+        if image_id in self.items:
+            self.items[image_id].mark_as_important()
+
+    def get_marked_images(self) -> list:
+        """获取所有被标记为重要的图片。"""
+        return [id for id, item in self.items.items() if item.is_marked]

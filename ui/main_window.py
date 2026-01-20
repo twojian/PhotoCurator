@@ -6,7 +6,7 @@ from ui.components.tool_panel import ToolPanel
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("PhotoCurator V1.2")
+        self.setWindowTitle("PhotoCurator V1.4")
 
         central = QWidget()
         self.setCentralWidget(central)
