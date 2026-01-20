@@ -96,27 +96,108 @@ AI Analysis Worker（异步）
 ```
 ```markdown
 PhotoCurator/
+├── app.py
+│   # 应用入口
+│   # 生命周期装配：UI / Core / Data / Worker
+│   # 不含业务逻辑，仅负责编排与启动
 │
-├─ app.py                 # 程序入口，初始化 UI / Core / Database / Worker
-├─ export_weights.py      # PyTorch 模型权重导出为二进制
+├── export_weights.py
+│   # 离线工具：导出 / 固化模型权重
 │
-├─ core/                  # 核心推理与调度逻辑
-│   ├─ engine.py          # 推理引擎（InferenceEngine）
-│   ├─ operators.py       # 基础算子（linear, relu, l2_normalize）
-│   └─ scheduler.py       # 优先级调度器（PriorityScheduler）
-├─ data/                  # 数据管理
-│   ├─ database.py        # 图片记录与状态管理（ImageDatabase）
-│   └─ weight_loader.py   # 权重加载（load_weights）
-│   └── test_photo/        # 测试图片
-├── requirements.txt
-└─ ui/                    # 界面相关
-    ├─ main_window.py     # 主窗口 MainWindow
-    ├─ controller.py      # UIController + InferenceWorker
-    └─ components/        # UI 组件
-        ├─ gallery.py     # 瀑布流/网格图片展示
-        ├─ image_item.py  # 单个图片项绘制
-        ├─ status_panel.py# 系统状态面板（总数/Pending/Running/Done）
-        └─ tool_panel.py  # 调度器参数控制面板（viewport / intent）
+├── weights.bin
+│   # 推理权重（二进制，运行期只读加载）
+│
+├── photocurator_config.json
+│   # 用户意图与系统偏好配置（运行期生成/更新）
+│
+├── core/
+│   ├── __init__.py
+│   │
+│   ├── engine.py
+│   │   # InferenceEngine
+│   │   # 受控感知管道（Embedding 推理）
+│   │   # 明确区分：感知 ≠ 决策 ≠ 价值
+│   │
+│   ├── operators.py
+│   │   # 纯算子层（linear / relu / normalize）
+│   │   # 无策略、无状态、无智能
+│   │
+│   ├── scheduler.py
+│   │   # PriorityScheduler
+│   │   # 任务选择机制（attention / intent / age）
+│   │   # 执行“如何选”，不决定“为什么选”
+│   │
+│   ├── strategy.py
+│   │   # StrategyManager / StrategyType
+│   │   # 系统价值立场（调度哲学）
+│   │   # 策略切换是系统级事件
+│   │
+│   └── event_log.py
+│       # EventLog / EventType
+│       # 系统唯一“事实来源”
+│       # 不可变事件 + 生命周期叙述
+│
+├── data/
+│   ├── __init__.py
+│   │
+│   ├── database.py
+│   │   # ImageDatabase / ImageRecord
+│   │   # 图片事实状态（存在 / 标记 / 可见 / 推理阶段）
+│   │
+│   ├── weight_loader.py
+│   │   # 权重加载与校验
+│   │
+│   ├── test_photo/
+│   │   # 本地测试图片（开发期）
+│   │
+│   └── thumb_cache/
+│       # 缩略图缓存（运行期生成，可清空）
+│
+├── ui/
+│   ├── __init__.py
+│   │
+│   ├── main_window.py
+│   │   # 主窗口
+│   │   # 三栏结构装配（状态 / 画廊 / 工具）
+│   │
+│   ├── controller.py
+│   │   # UIController
+│   │   # 人机信号中枢：UI ↔ Scheduler ↔ Database ↔ EventLog
+│   │
+│   │   # InferenceWorker
+│   │   # 后台推理线程（QThread）
+│   │
+│   └── components/
+│       ├── __init__.py
+│       │
+│       ├── status_panel.py
+│       │   # 系统意识层（System Consciousness）
+│       │   # 情绪推断 / 心跳动画 / 策略叙述 / 时间轴
+│       │
+│       ├── gallery.py
+│       │   # 世界投影层（World Projection）
+│       │   # Attention Window / 可见性计算
+│       │
+│       ├── image_item.py
+│       │   # 单图节点
+│       │   # 状态机 + 延迟加载 + 用户交互
+│       │
+│       └── tool_panel.py
+│           # 人类意图层（Human Intent）
+│           # Viewport Boost / Intent Boost / 配置持久化
+│
+├── test/
+│   ├── __init__.py
+│   │   # 测试套件入口
+│   │
+│   └── test_narrative_consistency.py
+│       # Narrative Consistency Tests
+│       # 系统自洽性 / 诚实性 / 不自欺测试
+│       # 验证 UI 叙述是否与系统事实一致
+│
+└── logs/   （可选）
+    └── photocurator.log
+        # 运行期日志（调试 / 回放 / 审计）
 ```
 
 ---
